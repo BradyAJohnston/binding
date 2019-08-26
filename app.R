@@ -2,16 +2,14 @@ library(shiny)
 library(ggplot2)
 library(scales)
 
-bcl <- read.csv("bcl-data.csv", stringsAsFactors = FALSE)
-
 ui <- fluidPage(
   titlePanel("Predicting Binding Curves"),
   sidebarLayout(
     sidebarPanel(
-      sliderInput("concInput","Concentration Range 10^x nM", -10,10,c(-3,3)),
+      #sliderInput("concInput","Concentration Range 10^x nM", -10,10,c(-3,3)),
       numericInput("dilInput", "Number of Dilutions in Experiment", 16),
-      #numericInput("upperInput", "Upper Concentration (nM)", 1000),
-      #numericInput("lowerInput", "Lower concentration (")
+      numericInput("upperInput", "Highest Sample Concentration (nM)", 1000),
+      numericInput("factorInput", "Dilution factor for samples (0-1)", 0.5),
       numericInput("kdInput", "Predicted Kd for Interaction (nM)", 10),
       numericInput("ligandInput","Ligand Concetration (constant) (nM)", 50),
       radioButtons("plotInput", "Plot Type", c("Line","Point", "Both"),selected = "Point")
@@ -19,11 +17,13 @@ ui <- fluidPage(
     mainPanel(
       plotOutput("bindingplots"),
       br(), br(),
-      p(strong("The solid black line indicates the specified constant concentration.")),
+      p(strong("The solid black line indicates the specified constant concentration. The red line is predicted Kd.")),
       p("This graph shows two plots. The 'Ideal' is what a binding curve for an interaction with the specficied
-      kd will look like. The 'Predicted' curve is what your binding experiment will look like with a constant 
-      concentration as stated. If there is discrepancy between the two, then you are conducting your experiment 
-      a concentration too high to accurately get data for the interaction.")
+      kd will look like if the experiment is set up properly. The 'Predicted' curve is what your binding experiment 
+      will look like with a constant 
+      concentration as stated."),
+        p("If there is discrepancy between the two, then you are conducting your experiment 
+      at a concentration too high to accurately get data for the interaction.")
     )
   )
 )
@@ -31,7 +31,6 @@ ui <- fluidPage(
 server <- function(input, output) {
   
 # Functions doing the Heavy Lifting
-  #####
   hill <- function(b,m,P,Kd) {
     b + (m-b)*(1/(1+Kd/P))
   }
@@ -43,15 +42,18 @@ server <- function(input, output) {
   
   outputdataframe <- reactive({
   
-  ## setting variables for plots (will include definitions)
+  # setting variables for plots
  
-  b <- 0
-  m <- 1
-  R <- input$ligandInput
-  logspace <- function( d1, d2, n) exp(log(10)*seq(d1, d2, length.out=n)) 
-  P <- logspace(input$concInput[1], input$concInput[2], input$dilInput)
-  #P <- logspace(-3, 3, 50)
-  #  P<-1
+  b <- 0 # This is minimum value (0% bound)
+  m <- 1 # This is maximum value (100% bound)
+  R <- input$ligandInput # This is concentration of the constant partner / ligand
+  
+samplenum <- 1:(input$dilInput-1) # List of how many samples there are.
+totaldilution <- input$upperInput # Highest starting concentration
+
+totaldilution[2:input$dilInput] <- input$factorInput^(samplenum) * input$upperInput
+  P <- totaldilution
+
   #function for producing dataframe and plot from inputs of hill and hillq
   plotbindhill <- function(input){
     temp1 <- data.frame(P,hill(b,m,P,input))
@@ -62,43 +64,32 @@ server <- function(input, output) {
     colnames(temp2) <- c("pconc","fbound","curve")
     temp <- merge(temp1,temp2, all = TRUE)
     temp$kd <- input
-    assign(paste("kd.data.", input, sep = ""), temp, envir = .GlobalEnv)
-  }
+    temp
+    }
 
-  #rm(kd.data.group)
   list <- c(0.1,1,10)
     
   kd.data.group  <- plotbindhill(input$kdInput)
-  
-  #for(i in list) {
-  #  plotbindhill(i)
-  #}
-  
-  
-  #kd.data.group <- Reduce(function(x,y){
-  #  merge(x=x,y=y, all=TRUE)
-  #}, list(kd.data.0.1,kd.data.1,kd.data.10))
 
   })
-
-##############
   
+  #sets up the graph with required parameters and data.
   mainplot <- reactive({
     R <- input$ligandInput
     type <- c("geom_line()", "geom_point()", "geom_line() + goem_point()")
     names(type) <- c("Line", "Point", "Both")
     plotype <- type[input$plotInput]
-    ggplot(outputdataframe(), aes(pconc,fbound,colour=curve)) +
+    ggplot(outputdataframe(), aes(pconc,fbound, colour=curve)) +
       labs(title = "Predicted Binding Curves", subtitle = paste("Binding curve with kd =", input$kdInput, "nM")) +
       xlab("Variable Concentration (nM)") + 
       ylab("Fraction Bound") +
       geom_vline(xintercept = R) +
-      scale_x_log10(labels = comma) + 
-      theme(aspect.ratio = 9/16, legend.position = "bottom") #+
-    #facet_wrap(vars(kd))
-    
+      geom_vline(xintercept = input$kdInput, color = "red") + 
+      scale_x_log10(labels = trans_format("log10", function(x) 10^x)) + 
+      theme(aspect.ratio = 9/16, legend.position = "bottom")
   })
   
+  #Creates the 3 types of graphs
   plotpoint <- reactive({
     mainplot() + geom_point(size = 3)
   })
@@ -109,6 +100,7 @@ server <- function(input, output) {
     mainplot() + geom_point(size = 3) + geom_line()
   })
   
+  #Selects what type of graph.
   graphInput <- reactive({
     switch(input$plotInput,
            "Point" = plotpoint(),
@@ -117,12 +109,10 @@ server <- function(input, output) {
     )
   })
   
+  #renders the actual graph
   output$bindingplots <- renderPlot({ 
     graphInput()
   })
-  
-  
-  
 
 }
 
