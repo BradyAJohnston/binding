@@ -6,3 +6,7 @@ Hopefully this will easily show why not considering concentrations and the kd of
 Play around with the app hosted on R shin below, or poke around in the R code yourself.
 
 [App can be found here.](https://bunchofbradys.shinyapps.io/Binding_Simulation)
+
+Improvements for information gained and also taking into account hill coefficients to come.
+
+Contact: [@bradyajohnston](https:/twitter.com/bradyajohnston) for any questions / bugs.
