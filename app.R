@@ -83,10 +83,13 @@ totaldilution[2:input$dilInput] <- input$factorInput^(samplenum) * input$upperIn
       labs(title = "Predicted Binding Curves", subtitle = paste("Binding curve with kd =", input$kdInput, "nM")) +
       xlab("Variable Concentration (nM)") + 
       ylab("Fraction Bound") +
-      geom_vline(xintercept = R) +
-      geom_vline(xintercept = input$kdInput, color = "red") + 
+      geom_linerange(aes(x=input$kdInput, ymax=0.5, ymin=-0.05), colour="gray80") +
+      geom_vline(xintercept = R, colour="#FFBF00", alpha=0.5) +
+      # geom_hline(yintercept = 0.5, colour="gray80") +
+      # geom_vline(xintercept = input$kdInput, color = "red") + 
+      theme_classic(base_size = 18) + 
       scale_x_log10(labels = trans_format("log10", function(x) 10^x)) + 
-      theme(aspect.ratio = 9/16, legend.position = "bottom")
+      theme(aspect.ratio = 9/16, legend.position = "right") + coord_cartesian(ylim=c(0,1))
   })
   
   #Creates the 3 types of graphs

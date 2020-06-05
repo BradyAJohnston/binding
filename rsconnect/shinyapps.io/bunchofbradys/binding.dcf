@@ -1,0 +1,12 @@
+name: binding
+title: binding
+username:
+account: bunchofbradys
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1750747
+bundleId: 2770887
+url: https://bunchofbradys.shinyapps.io/binding/
+when: 1580721356.02527
+asMultiple: FALSE
+asStatic: FALSE
